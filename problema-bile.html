@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provocarea celor 8 Bile</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f8ff; color: #333; }
+        .container { max-width: 800px; margin: 20px auto; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; }
+        .instructions { background: #e8f4fd; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 1.1em; }
+        
+        /* Balanța */
+        .scale-container { display: flex; justify-content: center; align-items: flex-end; height: 250px; margin: 40px 0; position: relative; }
+        .beam { width: 400px; height: 10px; background: #7f8c8d; position: relative; transition: transform 0.5s ease; display: flex; justify-content: space-between; align-items: flex-end; }
+        .pivot { width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-bottom: 50px solid #34495e; position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%); }
+        
+        .pan { width: 140px; min-height: 80px; background: #bdc3c7; border: 3px solid #7f8c8d; border-radius: 0 0 50px 50px; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; padding: 10px; position: relative; transition: transform 0.5s ease; }
+        .pan::before { content: ''; position: absolute; top: -100px; left: 50%; width: 2px; height: 100px; background: #7f8c8d; transform: translateX(-50%); }
+
+        /* Bilele */
+        .balls-tray { display: flex; justify-content: center; gap: 10px; margin-top: 60px; min-height: 60px; padding: 10px; border: 2px dashed #bdc3c7; border-radius: 10px; }
+        .ball { width: 45px; height: 45px; background: radial-gradient(circle at 15px 15px, #3498db, #2980b9); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; cursor: grab; box-shadow: 0 4px 5px rgba(0,0,0,0.2); user-select: none; }
+        .ball:active { cursor: grabbing; }
+
+        .controls { margin-top: 30px; }
+        button { padding: 12px 25px; font-size: 1em; cursor: pointer; border: none; border-radius: 5px; transition: 0.3s; margin: 5px; }
+        .btn-weigh { background: #27ae60; color: white; }
+        .btn-weigh:hover { background: #2ecc71; }
+        .btn-reset { background: #e67e22; color: white; }
+        
+        .status { margin-top: 20px; font-size: 1.2em; font-weight: bold; min-height: 1.5em; }
+        .counter { color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Bila mai ușoară ⚖️</h1>
+    <div class="instructions">
+        Ai <strong>8 bile</strong>. Una este <strong>mai ușoară</strong>. <br>
+        Găsește-o folosind balanța de maxim <strong>2 ori</strong>!
+    </div>
+
+    <div class="status" id="status">Pune bilele pe balanță...</div>
+    <div class="status">Cântăriri efectuate: <span id="count" class="counter">0</span> / 2</div>
+
+    <div class="scale-container">
+        <div class="beam" id="beam">
+            <div class="pan" id="leftPan" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <div class="pan" id="rightPan" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+        <div class="pivot"></div>
+    </div>
+
+    <div class="balls-tray" id="tray" ondrop="drop(event)" ondragover="allowDrop(event)">
+        </div>
+
+    <div class="controls">
+        <button class="btn-weigh" onclick="weigh()">Cântărește!</button>
+        <button class="btn-reset" onclick="initGame()">Resetează Jocul</button>
+    </div>
+    
+    <p style="margin-top:20px; font-size: 0.9em; color: #7f8c8d;">
+        *Trage bilele cu mouse-ul pe talere. După ce crezi că ai găsit-o, dă click pe bila respectivă în cutie.
+    </p>
+</div>
+
+<script>
+    let lightBallIndex = 0;
+    let weighingCount = 0;
+    let gameOver = false;
+
+    function initGame() {
+        const tray = document.getElementById('tray');
+        const leftPan = document.getElementById('leftPan');
+        const rightPan = document.getElementById('rightPan');
+        const beam = document.getElementById('beam');
+        
+        tray.innerHTML = '';
+        leftPan.innerHTML = '';
+        rightPan.innerHTML = '';
+        beam.style.transform = 'rotate(0deg)';
+        leftPan.style.transform = 'rotate(0deg)';
+        rightPan.style.transform = 'rotate(0deg)';
+        
+        lightBallIndex = Math.floor(Math.random() * 8) + 1;
+        weighingCount = 0;
+        gameOver = false;
+        document.getElementById('count').innerText = '0';
+        document.getElementById('status').innerText = 'Succes! Identifică bila ușoară.';
+        document.getElementById('status').style.color = '#333';
+
+        for (let i = 1; i <= 8; i++) {
+            const ball = document.createElement('div');
+            ball.className = 'ball';
+            ball.id = 'ball-' + i;
+            ball.innerText = i;
+            ball.draggable = true;
+            ball.ondragstart = drag;
+            ball.onclick = () => checkBall(i);
+            tray.appendChild(ball);
+        }
+    }
+
+    function allowDrop(ev) { ev.preventDefault(); }
+    function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+    function drop(ev) {
+        ev.preventDefault();
+        const data = ev.dataTransfer.getData("text");
+        const ball = document.getElementById(data);
+        if (ev.target.classList.contains('pan') || ev.target.id === 'tray') {
+            ev.target.appendChild(ball);
+            resetBeam();
+        }
+    }
+
+    function resetBeam() {
+        document.getElementById('beam').style.transform = 'rotate(0deg)';
+    }
+
+    function weigh() {
+        if (gameOver) return;
+        if (weighingCount >= 2) {
+            document.getElementById('status').innerText = "Ai folosit deja cele 2 încercări! Alege bila.";
+            return;
+        }
+
+        const leftBalls = document.getElementById('leftPan').children;
+        const rightBalls = document.getElementById('rightPan').children;
+
+        if (leftBalls.length === 0 && rightBalls.length === 0) return;
+
+        weighingCount++;
+        document.getElementById('count').innerText = weighingCount;
+
+        let leftWeight = leftBalls.length * 10;
+        let rightWeight = rightBalls.length * 10;
+
+        for (let b of leftBalls) if (b.id === 'ball-' + lightBallIndex) leftWeight -= 2;
+        for (let b of rightBalls) if (b.id === 'ball-' + lightBallIndex) rightWeight -= 2;
+
+        const beam = document.getElementById('beam');
+        if (leftWeight > rightWeight) {
+            beam.style.transform = 'rotate(-10deg)';
+            document.getElementById('status').innerText = "Partea stângă e mai ușoară!";
+        } else if (leftWeight < rightWeight) {
+            beam.style.transform = 'rotate(10deg)';
+            document.getElementById('status').innerText = "Partea dreaptă e mai ușoară!";
+        } else {
+            beam.style.transform = 'rotate(0deg)';
+            document.getElementById('status').innerText = "Echilibru perfect!";
+        }
+    }
+
+    function checkBall(index) {
+        if (gameOver) return;
+        if (index === lightBallIndex) {
+            document.getElementById('status').innerText = `BRAVO! 🎉 Bila ${index} era cea ușoară!`;
+            document.getElementById('status').style.color = '#27ae60';
+            gameOver = true;
+        } else {
+            document.getElementById('status').innerText = `Nu e bila ${index}. Mai încearcă!`;
+            document.getElementById('status').style.color = '#e74c3c';
+        }
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
